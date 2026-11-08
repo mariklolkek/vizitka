@@ -457,9 +457,16 @@ async function sendLead(data) {
   if (!inTG) { leadSent = true; alert('Заявка (вне Telegram):\n\n' + JSON.stringify(payload, null, 2)); return true; }
   sending = true;
   try {
-    if (!(tg.initDataUnsafe && tg.initDataUnsafe.query_id)) { leadSent = true; notify('success'); setTimeout(() => tg.sendData(JSON.stringify(payload)), 1400); return true; }
+    // 1) адрес бота известен → шлём напрямую: работает из любой кнопки и ссылки (t.me/бот/app, ?startapp, меню)
     await API_READY;
-    if (API_URL) { const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ initData: tg.initData, data: payload }) }); if (r.ok) { notify('success'); return true; } }
+    if (API_URL && tg.initData) {
+      try {
+        const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ initData: tg.initData, data: payload }) });
+        if (r.ok) { leadSent = true; notify('success'); return true; }
+      } catch (_) {}
+    }
+    // 2) запасной путь — sendData (работает только из reply-кнопки внизу чата)
+    if (!(tg.initDataUnsafe && tg.initDataUnsafe.query_id)) { leadSent = true; notify('success'); setTimeout(() => tg.sendData(JSON.stringify(payload)), 1400); return true; }
     throw new Error('no channel');
   } catch (e) {
     notify('error');
