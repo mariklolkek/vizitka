@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f0f10">
+<title>Марк Лях · агентство</title>
+<meta name="description" content="Упаковка Telegram-каналов, воронки, запуски и рилсы для экспертов.">
+
+<!-- Telegram WebApp SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<!-- Шрифты -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<script>
+  /* Не показывать загрузку повторно и при reduced-motion — решаем до отрисовки, чтобы не мигало */
+  try {
+    if (localStorage.getItem('mp_boot') || matchMedia('(prefers-reduced-motion: reduce)').matches)
+      document.documentElement.classList.add('booted');
+  } catch (e) { document.documentElement.classList.add('booted'); }
+</script>
+
+<style>
+/* =========================================================
+   0. ТОКЕНЫ И БАЗА
+   ========================================================= */
+:root{
+  --bg:#0f0f10; --card:#19191b; --line:#2c2c2f;
+  --y:#ffd84a; --t:#f2f2f2; --m:#9a9a9a;
+  --mono:'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  --sans:'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --r:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--t);overflow-x:hidden;overflow-x:clip}
+body{font:400 15px/1.5 var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:var(--y);text-decoration:none}
+::selection{background:var(--y);color:#000}
+
+/* =========================================================
+   1. ФОН: сетка, свечение, сканлайны
+   ========================================================= */
+.bg-grid{position:fixed;inset:-40px;z-index:-2;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:40px 40px;
+  animation:gridDrift 24s linear infinite;will-change:transform}
+@keyframes gridDrift{to{transform:translate3d(40px,40px,0)}}
+.bg-glow{position:fixed;top:-160px;right:-160px;width:420px;height:420px;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,216,74,.16),rgba(255,216,74,0) 65%)}
+.scanlines{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:.03;
+  background:repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 3px)}
+
+/* =========================================================
+   2. ОБЩИЕ ЭЛЕМЕНТЫ
+   ========================================================= */
+.wrap{max-width:430px;margin:0 auto;padding:0 16px}
+section{padding:56px 0 8px}
+.label{font:500 11px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--m)}
+.label b{color:var(--y);font-weight:500}
+h2{font:900 30px/1.05 var(--sans);letter-spacing:-.02em;margin:10px 0 10px}
+.lead{color:var(--m);font-size:15px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.pill{display:inline-block;background:var(--y);color:#0f0f10;font:700 11px/1 var(--mono);
+  padding:7px 11px;border-radius:999px;letter-spacing:.04em;text-transform:uppercase}
+
+.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:54px;padding:14px 18px;
+  border-radius:16px;font:700 14px/1.2 var(--mono);letter-spacing:.04em;text-transform:uppercase;
+  transition:transform .12s ease, box-shadow .2s ease}
+.btn:active{transform:scale(.97)}
+.btn-main{background:var(--y);color:#0f0f10;box-shadow:0 8px 28px rgba(255,216,74,.22)}
+.btn-ghost{background:#0f0f10;color:var(--y);border:1.5px solid var(--y);text-transform:none}
+.btn:disabled{opacity:.55}
+
+.term-head{display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line);
+  font:500 11px/1 var(--mono);color:var(--m)}
+.term-head i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+.term-head i:first-child{background:var(--y)}
+.term-head span{margin-left:6px}
+
+.cursor{color:var(--y);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* =========================================================
+   3. ЭКРАН ЗАГРУЗКИ
+   ========================================================= */
+.boot{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;
+  transition:opacity .35s ease, filter .35s ease}
+.boot pre{font:500 13px/1.9 var(--mono);color:var(--t);width:290px;white-space:pre}
+.boot pre b{color:var(--y);font-weight:700}
+.boot.out{opacity:0;filter:blur(6px)}
+.booted .boot{display:none}
+
+/* =========================================================
+   4. ВЕРХНЯЯ ПОЛОСА + HERO
+   ========================================================= */
+.top{display:flex;justify-content:space-between;align-items:center;padding:16px 0 0;font:500 12px/1 var(--mono)}
+.logo{display:flex;align-items:center;gap:8px;padding:8px 0;user-select:none;-webkit-user-select:none}
+.logo-mark{width:26px;height:26px;border-radius:8px;background:var(--y);color:#0f0f10;display:grid;place-items:center;font:900 14px/1 var(--sans)}
+.status{color:var(--m)}
+.status::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--y);margin-right:7px;
+  box-shadow:0 0 8px var(--y);vertical-align:1px}
+
+.hero{padding-top:44px}
+.glitch{position:relative;display:inline-block;font:900 clamp(54px,17vw,72px)/.9 var(--sans);letter-spacing:-.04em;margin:14px 0 18px}
+.glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;top:0;opacity:0;pointer-events:none}
+.glitch.on::before{opacity:1;color:var(--y);animation:gA .2s steps(2) both}
+.glitch.on::after{opacity:1;color:#fff;animation:gB .2s steps(2) both}
+.glitch.on{animation:gMain .2s steps(2)}
+@keyframes gA{0%{clip-path:inset(8% 0 62% 0);transform:translate(-5px,-1px)}100%{clip-path:inset(48% 0 22% 0);transform:translate(-3px,1px)}}
+@keyframes gB{0%{clip-path:inset(64% 0 6% 0);transform:translate(5px,1px)}100%{clip-path:inset(18% 0 58% 0);transform:translate(3px,-1px)}}
+@keyframes gMain{50%{transform:translateX(1px);color:rgba(242,242,242,.85)}}
+
+.sub{font:600 20px/1.35 var(--sans);min-height:56px}
+.sub .typed{color:var(--y);font-family:var(--mono);font-weight:700}
+.hero-desc{color:var(--m);margin:14px 0 26px}
+.hero-btns{display:grid;gap:10px}
+.btn-glitch{animation:btnGlitch .28s steps(3)}
+@keyframes btnGlitch{
+  0%{transform:translate(0);box-shadow:-4px 0 0 #fff,4px 0 0 rgba(255,216,74,.5)}
+  33%{transform:translate(-3px,1px);clip-path:inset(0 0 40% 0)}
+  66%{transform:translate(3px,-1px);clip-path:inset(40% 0 0 0)}
+  100%{transform:translate(0);clip-path:none}}
+
+/* =========================================================
+   5. КРУГОВОРОТ (SVG)
+   ========================================================= */
+.orbit-box{position:relative;margin:18px auto 0;max-width:380px}
+#orbit{display:block;width:100%;height:auto;touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:grab}
+#orbit:active{cursor:grabbing}
+#orbit .ring{fill:none;stroke:var(--line);stroke-dasharray:2 6}
+#orbit .arc{fill:none;stroke:var(--y);stroke-width:2;stroke-linecap:round}
+#orbit .node rect{fill:var(--card);stroke:var(--line);stroke-width:1}
+#orbit .node{cursor:pointer}
+#orbit .node:hover rect{stroke:var(--y)}
+#orbit .ico{fill:none;stroke:var(--y);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+#orbit .ico .f{fill:var(--y);stroke:none}
+#orbit .n-t{font:900 13px var(--sans);fill:var(--t);text-anchor:middle}
+#orbit .n-s{font:500 9px var(--mono);fill:var(--m);text-anchor:middle}
+#orbit .coin{cursor:pointer}
+#orbit .coin-pulse{fill:none;stroke:var(--y);transform-box:fill-box;transform-origin:center;animation:pulse 2.6s ease-out infinite}
+@keyframes pulse{from{transform:scale(1);opacity:.6}to{transform:scale(1.45);opacity:0}}
+.orbit-hint{text-align:center;font:500 11px/1.4 var(--mono);color:var(--m);margin-top:6px}
+
+/* =========================================================
+   6. БЕГУЩАЯ СТРОКА
+   ========================================================= */
+.ticker{margin:56px -16px 0;transform:rotate(-2deg);background:var(--y);color:#0f0f10;overflow:hidden;
+  padding:12px 0;width:calc(100% + 32px)}
+.ticker-track{display:flex;width:max-content;animation:tick 18s linear infinite;will-change:transform}
+.ticker-track span{font:700 15px/1 var(--mono);letter-spacing:.06em;white-space:pre;padding-right:0}
+@keyframes tick{to{transform:translate3d(-50%,0,0)}}
+
+/* =========================================================
+   7. УСЛУГИ — ВКЛАДКИ ТЕРМИНАЛА
+   ========================================================= */
+.tabs{position:relative;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:18px -16px 12px;padding:0 16px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;font:500 13px/1 var(--mono);color:var(--m);padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--card)}
+.tab.on{color:#0f0f10;background:var(--y);border-color:var(--y);font-weight:700}
+.tab.hot:not(.on){color:var(--y);border-color:rgba(255,216,74,.45)}
+
+.svc{padding:20px 18px 18px;min-height:420px;position:relative;transition:border-color .2s, box-shadow .2s}
+.svc.best{border-color:var(--y);box-shadow:0 0 0 1px var(--y),0 0 40px rgba(255,216,74,.16)}
+.line{opacity:0;animation:lineIn .16s steps(3) forwards;animation-delay:var(--d,0ms)}
+@keyframes lineIn{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+.cmd{font:500 12px/1.4 var(--mono);color:var(--m);margin-bottom:12px}
+.cmd b{color:var(--y);font-weight:500}
+.best-badge{display:inline-block;font:700 10px/1 var(--mono);letter-spacing:.08em;color:var(--y);border:1px solid var(--y);
+  padding:6px 9px;border-radius:999px;margin-bottom:12px}
+.svc-title{font:900 24px/1.1 var(--sans);letter-spacing:-.01em}
+.price-row{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px;margin:10px 0 12px}
+.price{font:900 38px/1 var(--sans);color:var(--y);letter-spacing:-.02em;white-space:nowrap}
+.price small{font:600 15px var(--sans);color:var(--y);letter-spacing:0}
+.old{font:600 16px var(--sans);color:var(--m);text-decoration:line-through;white-space:nowrap}
+.svc-desc{color:#cfcfcf;margin:14px 0 14px}
+.item{display:grid;grid-template-columns:30px 1fr;gap:6px;padding:9px 0;border-top:1px solid var(--line);font-size:14.5px}
+.item b{font:700 13px/1.5 var(--mono);color:var(--y)}
+.edits{font:500 12px/1.4 var(--mono);color:var(--m);margin:12px 0 16px}
+
+/* =========================================================
+   8. КВИЗ «СКАН КАНАЛА»
+   ========================================================= */
+.quiz{overflow:hidden;margin-top:18px}
+.quiz-body{padding:20px 18px;min-height:300px}
+.q-step{font:500 12px/1 var(--mono);color:var(--m);margin-bottom:12px}
+.q-step b{color:var(--y);font-weight:500}
+.q-text{font:900 22px/1.2 var(--sans);margin-bottom:18px}
+.q-answers{display:grid;gap:8px}
+.q-ans{text-align:left;padding:15px 16px;border-radius:14px;border:1px solid var(--line);background:#141415;
+  font:500 14px/1.3 var(--mono);transition:border-color .15s, background .15s}
+.q-ans::before{content:'> ';color:var(--y)}
+.q-ans:active,.q-ans.pick{border-color:var(--y);background:rgba(255,216,74,.08)}
+.scan{padding:40px 0}
+.scan-txt{font:500 13px/1 var(--mono);color:var(--t);margin-bottom:12px}
+.scan-bar{height:6px;border-radius:6px;background:var(--line);overflow:hidden}
+.scan-bar i{display:block;height:100%;width:0;background:var(--y);transition:width .6s linear}
+.diag{font:700 16px/1.5 var(--mono);margin:8px 0 6px;min-height:48px}
+.diag em{font-style:normal;color:var(--y)}
+.diag-note{color:var(--m);font-size:14px;margin-bottom:18px}
+.q-actions{display:grid;gap:8px}
+.link-btn{font:500 13px/1 var(--mono);color:var(--m);padding:12px;text-align:center}
+
+/* =========================================================
+   9. ФОРМА РАЗБОРА — КОМАНДНАЯ СТРОКА
+   ========================================================= */
+.term-form{margin-top:18px}
+.tf-body{padding:18px}
+.cmdline{display:block;padding:12px 0;border-bottom:1px dashed var(--line);font:500 14px/1.4 var(--mono)}
+.cmdline .ps{color:var(--y);display:block;margin-bottom:6px}
+.cmdline .row{display:flex;align-items:flex-start;gap:2px}
+.cmdline .at{color:var(--t);padding-top:1px}
+.cmdline input,.cmdline textarea{flex:1;width:100%;background:transparent;border:0;outline:0;color:var(--t);
+  font:500 16px/1.4 var(--mono);resize:none;caret-color:var(--y)}
+.cmdline input::placeholder,.cmdline textarea::placeholder{color:#4a4a4e}
+.cmdline.err{animation:shake .3s}
+.cmdline.err .ps{color:#ff6b6b}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.tf-quiz{font:500 12px/1.4 var(--mono);color:var(--m);margin:14px 0 0}
+.tf-quiz b{color:var(--y);font-weight:500}
+.term-form .btn{margin-top:18px}
+.tf-out{font:500 13px/1.5 var(--mono);color:var(--y);min-height:20px;margin-top:14px}
+
+/* =========================================================
+   10. СОЗВОН + ФУТЕР
+   ========================================================= */
+.call{padding:22px 18px;margin-top:18px}
+.call p{color:var(--m);margin:6px 0 16px}
+footer{padding:56px 0 calc(40px + env(safe-area-inset-bottom));text-align:center;font:500 12px/1.8 var(--mono);color:var(--m)}
+footer a{font-weight:700}
+footer .f-links{display:flex;justify-content:center;gap:18px;margin-bottom:10px;font-size:14px}
+
+/* =========================================================
+   11. ТОСТ + ПАСХАЛКА
+   ========================================================= */
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;
+  max-width:calc(100% - 32px);width:398px;background:var(--card);border:1px solid var(--y);border-radius:14px;
+  padding:13px 16px;font:500 13px/1.4 var(--mono);color:var(--y);z-index:80;transition:.25s ease;pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.egg{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+.egg[hidden]{display:none}
+.egg-win{width:100%;max-width:398px;background:#0b0b0c;border:1px solid var(--y);border-radius:18px;overflow:hidden;
+  box-shadow:0 0 50px rgba(255,216,74,.2)}
+.egg-win .term-head button{margin-left:auto;color:var(--m);font-size:18px;line-height:1;padding:0 4px}
+.egg-win pre{padding:18px 16px 22px;font:500 13px/1.8 var(--mono);white-space:pre-wrap;min-height:120px}
+.egg-win pre b{color:var(--y)}
+
+/* =========================================================
+   12. REDUCED MOTION
+   ========================================================= */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition:none!important}
+  .glitch.on::before,.glitch.on::after{opacity:0}
+  .ticker-track{animation:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<div class="scanlines"></div>
+
+<!-- ============ ЗАГРУЗКА ============ -->
+<div id="boot" class="boot" aria-hidden="true"><pre id="boot-log"></pre></div>
+
+<main class="wrap">
+
+  <!-- ============ ВЕРХ ============ -->
+  <header class="top">
+    <div class="logo" id="logo"><span class="logo-mark">M</span>markpy.agency</div>
+    <div class="status">online</div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="hero">
+    <div class="label">Марк Лях <b>·</b> агентство</div>
+    <h1 class="glitch" id="glitch" data-text="МАРК ЛЯХ">МАРК ЛЯХ</h1>
+    <p class="sub">Делаю так, чтобы к вам приходили <span class="typed" id="typed">клиенты</span><span class="cursor">_</span></p>
+    <p class="hero-desc">Упаковка Telegram-каналов, воронки, запуски и рилсы для психологов, коучей и наставников.</p>
+    <div class="hero-btns">
+      <button class="btn btn-main" id="hero-cta">[ ▶ БЕСПЛАТНЫЙ РАЗБОР ]</button>
+      <button class="btn btn-ghost" data-scroll="#services">&gt; услуги</button>
+    </div>
+  </section>
+
+  <!-- ============ КРУГОВОРОТ ============ -->
+  <section id="system">
+    <div class="label"><b>//</b> как это работает</div>
+    <h2>Одна система — четыре шага</h2>
+    <p class="lead">Каждая часть передаёт человека следующей, пока он не станет клиентом.</p>
+    <div class="orbit-box">
+      <svg id="orbit" viewBox="0 0 360 360" role="img" aria-label="Схема: рилсы приводят, канал прогревает, воронка доводит, запуск продаёт">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0L10 5L0 10z" fill="#ffd84a"/>
+          </marker>
+        </defs>
+        <circle class="ring" cx="180" cy="180" r="122"/>
+        <g id="orbit-rot"></g>
+        <g class="coin" data-node="turnkey">
+          <circle class="coin-pulse" cx="180" cy="180" r="46"/>
+          <circle cx="180" cy="180" r="46" fill="#ffd84a"/>
+          <circle cx="180" cy="180" r="39" fill="none" stroke="#0f0f10" stroke-opacity=".25" stroke-width="1.5"/>
+          <text x="180" y="186" text-anchor="middle" style="font:900 34px Inter,sans-serif" fill="#0f0f10">₽</text>
+          <text x="180" y="203" text-anchor="middle" style="font:700 8.5px 'JetBrains Mono',monospace;letter-spacing:.06em" fill="#0f0f10">· ОПЛАТЫ ·</text>
+        </g>
+      </svg>
+      <div class="orbit-hint">крутите пальцем · тап по узлу — подробности</div>
+    </div>
+  </section>
+
+  <!-- ============ БЕГУЩАЯ СТРОКА ============ -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span>ЗАЯВКИ • ПРОДАЖИ • ЗАПУСКИ • ВОРОНКИ • РИЛСЫ • ЗАЯВКИ • ПРОДАЖИ • ЗАПУСКИ • ВОРОНКИ • РИЛСЫ • </span>
+      <span>ЗАЯВКИ • ПРОДАЖИ • ЗАПУСКИ • ВОРОНКИ • РИЛСЫ • ЗАЯВКИ • ПРОДАЖИ • ЗАПУСКИ • ВОРОНКИ • РИЛСЫ • </span>
+    </div>
+  </div>
+
+  <!-- ============ УСЛУГИ ============ -->
+  <section id="services">
+    <div class="label"><b>//</b> услуги</div>
+    <h2>Фиксированная цена и срок</h2>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="card svc" id="svc" aria-live="polite"></div>
+  </section>
+
+  <!-- ============ КВИЗ ============ -->
+  <section id="quiz">
+    <div class="label"><b>//</b> скан канала</div>
+    <h2>Что подойдёт именно вам</h2>
+    <p class="lead">Четыре вопроса — и станет понятно, с чего начать.</p>
+    <div class="card quiz">
+      <div class="term-head"><i></i><i></i><i></i><span>scan --channel</span></div>
+      <div class="quiz-body" id="quiz-body"></div>
+    </div>
+  </section>
+
+  <!-- ============ ФОРМА РАЗБОРА ============ -->
+  <section id="razbor">
+    <div class="label"><b>//</b> бесплатно</div>
+    <h2>Разбор вашего канала</h2>
+    <p class="lead">Посмотрю канал и скажу, где теряются люди и что исправить в первую очередь.</p>
+    <form class="card term-form" id="razbor-form" novalidate>
+      <div class="term-head"><i></i><i></i><i></i><span>razbor.sh</span></div>
+      <div class="tf-body">
+        <label class="cmdline" id="cl-channel">
+          <span class="ps">$ канал:</span>
+          <span class="row"><span class="at">@</span><input id="f-channel" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="________" maxlength="64"></span>
+        </label>
+        <label class="cmdline">
+          <span class="ps">$ что сейчас не устраивает:</span>
+          <span class="row"><textarea id="f-pain" rows="2" placeholder="________" maxlength="500"></textarea></span>
+        </label>
+        <div class="tf-quiz" id="tf-quiz" hidden></div>
+        <button class="btn btn-main" type="submit" id="f-submit">[ ENTER ]</button>
+        <div class="tf-out" id="f-out"></div>
+      </div>
+    </form>
+  </section>
+
+  <!-- ============ СОЗВОН ============ -->
+  <section id="call-sec">
+    <div class="card call">
+      <div class="label"><b>//</b> созвон</div>
+      <h2 style="font-size:24px;margin-top:8px">Или сразу поговорим</h2>
+      <p>Обсудим вашу задачу и решим, что подойдёт. Марк напишет вам, чтобы согласовать время.</p>
+      <button class="btn btn-ghost" id="call-btn">&gt; записаться на созвон</button>
+    </div>
+  </section>
+
+  <!-- ============ ФУТЕР ============ -->
+  <footer>
+    <div class="f-links"><a href="https://t.me/markpy" data-tg>@markpy</a></div>
+    фиксированная цена и срок · оплата 50/50<br>
+    <span style="opacity:.6">© markpy.agency</span>
+  </footer>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============ ПАСХАЛКА ============ -->
+<div class="egg" id="egg" hidden>
+  <div class="egg-win">
+    <div class="term-head"><i></i><i></i><i></i><span>root@markpy</span><button id="egg-x" aria-label="Закрыть">×</button></div>
+    <pre id="egg-log"></pre>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   НАСТРОЙКИ
+   ========================================================= */
+// Адрес эндпоинта бота для заявок, когда сайт открыт НЕ reply-кнопкой
+// (inline-кнопка или кнопка меню — там sendData не работает).
+// Пример: 'https://bot.example.com/lead'. Пусто — эндпоинт не используется.
+const API_URL = '';
+
+/* =========================================================
+   УТИЛИТЫ
+   ========================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function typeText(el, text, speed = 28) {
+  return new Promise(res => {
+    if (RM) { el.textContent = text; return res(); }
+    let i = 0; el.textContent = '';
+    const t = setInterval(() => {
+      el.textContent = text.slice(0, ++i);
+      if (i >= text.length) { clearInterval(t); res(); }
+    }, speed);
+  });
+}
+function scrollToEl(sel) {
+  const el = typeof sel === 'string' ? $(sel) : sel;
+  if (el) el.scrollIntoView({ behavior: RM ? 'auto' : 'smooth', block: 'start' });
+}
+let toastT;
+function toast(text, ms = 2600) {
+  const t = $('#toast'); t.textContent = text; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* =========================================================
+   TELEGRAM WEBAPP
+   ========================================================= */
+const tg = window.Telegram && window.Telegram.WebApp;
+const inTG = !!(tg && tg.initData);   // в обычном браузере initData пустой
+const startParam = inTG ? (tg.initDataUnsafe.start_param || '') : (new URLSearchParams(location.search).get('src') || '');
+
+function impact(s = 'light') { try { inTG && tg.HapticFeedback.impactOccurred(s); } catch (e) {} }
+function notify(s = 'success') { try { inTG && tg.HapticFeedback.notificationOccurred(s); } catch (e) {} }
+
+if (inTG) {
+  tg.ready(); tg.expand();
+  try { tg.setHeaderColor('#0f0f10'); tg.setBackgroundColor('#0f0f10'); } catch (e) {}
+  try { if (tg.isVersionAtLeast('7.7')) tg.disableVerticalSwipes(); } catch (e) {}
+
+  tg.MainButton.setParams({ text: 'ПОЛУЧИТЬ РАЗБОР', color: '#ffd84a', text_color: '#0f0f10', is_visible: true });
+  tg.MainButton.onClick(() => { impact(); scrollToEl('#razbor'); setTimeout(() => $('#f-channel').focus({ preventScroll: true }), 500); });
+
+  // прячем MainButton, когда форма разбора уже на экране
+  new IntersectionObserver(([e]) => {
+    e.isIntersecting ? tg.MainButton.hide() : tg.MainButton.show();
+  }, { threshold: .25 }).observe($('#razbor'));
+
+  // ссылки t.me открываем внутри Telegram
+  $$('a[data-tg]').forEach(a => a.addEventListener('click', ev => { ev.preventDefault(); tg.openTelegramLink(a.href); }));
+}
+
+// haptic на любое нажатие кнопки/ссылки
+document.addEventListener('click', e => { if (e.target.closest('button, a')) impact('light'); });
+
+/* ---------- отправка заявок ---------- */
+let promo = '';
+let sending = false;
+
+async function sendLead(data) {
+  if (sending) return false;
+  const payload = { ...data };
+  if (promo) payload.promo = promo;
+  if (startParam) payload.src = startParam;
+
+  // вне Telegram — просто показываем данные
+  if (!inTG) { alert('Заявка (вне Telegram):\n\n' + JSON.stringify(payload, null, 2)); return true; }
+
+  sending = true;
+  try {
+    // Открыто reply-кнопкой → работает sendData (Mini App закроется после отправки)
+    if (!tg.initDataUnsafe.query_id) {
+      notify('success');
+      setTimeout(() => tg.sendData(JSON.stringify(payload)), 1400);
+      return true;
+    }
+    // Открыто inline-кнопкой/меню → шлём на эндпоинт бота
+    if (API_URL) {
+      const r = await fetch(API_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ initData: tg.initData, data: payload })
+      });
+      if (r.ok) { notify('success'); return true; }
+    }
+    throw new Error('no channel');
+  } catch (e) {
+    notify('error');
+    tg.showAlert('Не получилось отправить заявку отсюда. Откройте сайт кнопкой «Открыть сайт» внизу чата с ботом или напишите @markpy.');
+    return false;
+  } finally { sending = false; }
+}
+
+/* =========================================================
+   ЗАГРУЗКА (только при первом заходе)
+   ========================================================= */
+async function boot() {
+  const box = $('#boot');
+  if (document.documentElement.classList.contains('booted')) { box.remove(); return; }
+  const log = $('#boot-log');
+  const line = () => log.appendChild(document.createElement('div'));
+
+  const l1 = line(); await typeText(l1, '> init markpy.agency...', 11);
+  l1.innerHTML += '  <b>OK</b>';
+  const l2 = line();
+  for (let n = 0; n <= 10; n++) {
+    l2.innerHTML = '> loading clients...  <b>' + '█'.repeat(n) + '</b>' + '░'.repeat(10 - n) + ' ' + n * 10 + '%';
+    await sleep(50);
+  }
+  const l3 = line(); await typeText(l3, '> ready', 22);
+  l3.innerHTML += '<span class="cursor">_</span>';
+  await sleep(220);
+  box.classList.add('out');
+  await sleep(350);
+  box.remove();
+  try { localStorage.setItem('mp_boot', '1'); } catch (e) {}
+}
+
+/* =========================================================
+   HERO: глитч + печатающийся текст
+   ========================================================= */
+function initGlitch() {
+  if (RM) return;
+  const g = $('#glitch');
+  const fire = () => {
+    g.classList.add('on');
+    setTimeout(() => g.classList.remove('on'), 200);
+    setTimeout(fire, 3000 + Math.random() * 2000);
+  };
+  setTimeout(fire, 1800);
+}
+
+async function initTyping() {
+  if (RM) return;
+  const el = $('#typed');
+  const words = ['клиенты', 'заявки', 'продажи'];
+  let i = 0;
+  await sleep(1600);
+  while (true) {
+    const w = words[i % words.length];
+    for (let k = el.textContent.length; k >= 0; k--) { el.textContent = el.textContent.slice(0, k); await sleep(45); }
+    await sleep(150);
+    for (let k = 1; k <= w.length; k++) { el.textContent = w.slice(0, k); await sleep(85); }
+    await sleep(1800);
+    i++;
+  }
+}
+
+$('#hero-cta').addEventListener('click', e => {
+  const b = e.currentTarget;
+  if (!RM) { b.classList.remove('btn-glitch'); void b.offsetWidth; b.classList.add('btn-glitch'); }
+  setTimeout(() => scrollToEl('#razbor'), RM ? 0 : 220);
+});
+$$('[data-scroll]').forEach(b => b.addEventListener('click', () => scrollToEl(b.dataset.scroll)));
+
+/* =========================================================
+   УСЛУГИ — данные и вкладки
+   ========================================================= */
+const NB = ' ';
+const SERVICES = {
+  pack: {
+    tab: 'упаковка', title: 'Упаковка ТГ-канала', short: 'УПАКОВКА',
+    price: `17${NB}000${NB}₽`, term: '10 дней', edits: '2 круга правок',
+    desc: 'За несколько постов человек понимает, кто вы, какую проблему решаете и как к вам записаться.',
+    items: ['Разбор канала и соцсетей: где теряются люди', 'Созвон-разбор на час: как ваш канал продаёт',
+      'Новое описание и позиционирование', 'Закреп с кнопками: кто вы, цены, отзывы, запись', 'Напишем вместе 5 постов',
+      'Шаблоны продаж, призывов и скрипт ответа в ЛС', 'Ссылки-трекеры под каждую площадку', 'План на 17 постов вперёд',
+      'Аватарка и название в едином стиле']
+  },
+  funnel: {
+    tab: 'воронка', title: 'Воронка', short: 'ВОРОНКА',
+    price: `37${NB}000${NB}₽`, term: '21 день', edits: '2 круга правок',
+    desc: 'Соцсети → Telegram → запись. Человек увидел вас где угодно и сам дошёл до записи.',
+    items: ['Схема воронки под ваш продукт', 'Ссылки и призывы из соцсетей в Telegram', 'Бот с тестом и ИИ-разбором',
+      'Лид-магнит: чек-лист или гайд', 'Сортировка заявок: горячие сразу вам', 'Цепочка на 7 дней для тех, кто не записался',
+      'Напоминания перед консультацией', '2 недели донастройки после запуска']
+  },
+  launch: {
+    tab: 'запуск', title: 'Запуск ТГ-канала', short: 'ЗАПУСК',
+    price: `50${NB}000${NB}₽`, term: '30 дней', edits: '2 круга правок',
+    desc: 'Запуск продукта по методике «15 постов»: прогрев, эфиры и окно продаж.',
+    items: ['Анализ аудитории: боли и желания', 'Упаковка продукта: оффер, цена, формат', '15 постов прогрева',
+      'Сценарии 2 эфиров', 'Окно продаж 7 дней с дожимом', 'Скрипт для «сколько стоит» и «подумаю»',
+      'Публикация по графику', 'Разбор после запуска']
+  },
+  reels: {
+    tab: 'рилсы', title: 'Рилсы', short: 'РИЛСЫ',
+    price: `3${NB}900${NB}₽`, unit: '/ рилс', term: 'от 1 рилса', edits: '1 круг правок',
+    desc: 'Ролики, которые ведут в личку или Telegram, а не просто собирают просмотры.',
+    items: ['Распаковка на 30 минут', 'Сценарий с крючком в первые 3 секунды', 'Подсказки для съёмки: свет, кадр, текст',
+      'Монтаж, субтитры, музыка', 'Обложка в едином стиле', 'Призыв в конце ролика', 'Подпись с ключевыми словами', 'Ссылка-трекер']
+  },
+  turnkey: {
+    tab: 'под_ключ', title: 'Всё под ключ', short: 'ВСЁ ПОД КЛЮЧ', best: true,
+    price: `85${NB}000${NB}₽`, old: `105${NB}000${NB}₽`, term: '6 недель', edits: '3 круга правок',
+    desc: 'Система целиком: рилсы приводят, канал прогревает, воронка доводит до записи, запуск продаёт.',
+    items: ['Упаковка канала', 'Воронка соцсети → Telegram → запись', '8 рилсов: сценарии и монтаж', 'Запуск по схеме «15 постов»',
+      'Скрипты переписки и возражений', 'Еженедельный созвон с цифрами', 'Месяц донастройки после запуска']
+  }
+};
+const SVC_ORDER = ['pack', 'funnel', 'launch', 'reels', 'turnkey'];
+let currentSvc = null;
+
+function renderTabs() {
+  $('#tabs').innerHTML = SVC_ORDER.map(k =>
+    `<button class="tab${SERVICES[k].best ? ' hot' : ''}" role="tab" data-svc="${k}">~/${SERVICES[k].tab}</button>`).join('');
+  $$('#tabs .tab').forEach(b => b.addEventListener('click', () => renderService(b.dataset.svc)));
+}
+
+function renderService(key) {
+  if (key === currentSvc) return;
+  currentSvc = key;
+  const s = SERVICES[key];
+  $$('#tabs .tab').forEach(b => {
+    const on = b.dataset.svc === key;
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', on);
+    if (on) { const box = $('#tabs'); box.scrollTo({ left: b.offsetLeft - (box.clientWidth - b.offsetWidth) / 2, behavior: RM ? 'auto' : 'smooth' }); }
+  });
+  const card = $('#svc');
+  card.classList.toggle('best', !!s.best);
+
+  const lines = [];
+  lines.push(`<div class="cmd"><b>$</b> cat ~/${s.tab}.txt</div>`);
+  if (s.best) lines.push(`<div class="best-badge">★ ЛУЧШЕЕ ПРЕДЛОЖЕНИЕ</div>`);
+  lines.push(`<h3 class="svc-title">${s.title}</h3>`);
+  lines.push(`<div class="price-row"><span class="price">${s.price}${s.unit ? ` <small>${s.unit}</small>` : ''}</span>${s.old ? `<s class="old">${s.old}</s>` : ''}</div>`);
+  lines.push(`<span class="pill">${s.term}</span>`);
+  lines.push(`<p class="svc-desc">${s.desc}</p>`);
+  s.items.forEach((t, i) => lines.push(`<div class="item"><b>${String(i + 1).padStart(2, '0')}</b><span>${t}</span></div>`));
+  lines.push(`<div class="edits">// ${s.edits}</div>`);
+  lines.push(`<button class="btn btn-ghost" data-discuss="${key}">&gt; обсудить</button>`);
+
+  // каждая строка «печатается» с задержкой 40мс (через CSS animation-delay)
+  card.innerHTML = lines.map((h, i) =>
+    `<div class="line" style="--d:${RM ? 0 : i * 40}ms">${h}</div>`).join('');
+}
+
+function openService(key) {
+  renderService(key);
+  scrollToEl('#services');
+}
+
+$('#svc').addEventListener('click', async e => {
+  const b = e.target.closest('[data-discuss]');
+  if (!b) return;
+  const s = SERVICES[b.dataset.discuss];
+  toast('> отправляю заявку: ' + s.title + '...');
+  const ok = await sendLead({ type: 'service', service: s.title });
+  if (ok) toast('> заявка отправлена. Марк напишет в течение дня_', 3500);
+});
+
+/* =========================================================
+   КРУГОВОРОТ: SVG + вращение + drag с инерцией
+   ========================================================= */
+const ICONS = {
+  reels: '<rect x="2" y="4" width="20" height="16" rx="4"/><path class="f" d="M10 8.5l5.5 3.5-5.5 3.5z"/>',
+  channel: '<path d="M21.5 3.5L2.5 11l7 2.5 2.5 7 3.5-5 5 3.5z"/><path d="M9.5 13.5l12-10"/>',
+  funnel: '<path d="M3 4.5h18l-7 8.5v6l-4 2v-8z"/>',
+  launch: '<path d="M12 2.5c3.2 2.2 5 5.8 5 9.5l-2 4H9l-2-4c0-3.7 1.8-7.3 5-9.5z"/><circle cx="12" cy="10" r="2"/><path d="M10 19.5l2 2.5 2-2.5"/>'
+};
+const NODES = [
+  { a: -90, icon: 'reels', t: 'Рилсы', s: 'приводят', svc: 'reels' },
+  { a: 0, icon: 'channel', t: 'Канал', s: 'прогревает', svc: 'pack' },
+  { a: 90, icon: 'funnel', t: 'Воронка', s: 'доводит', svc: 'funnel' },
+  { a: 180, icon: 'launch', t: 'Запуск', s: 'продаёт', svc: 'launch' }
+];
+
+function initOrbit() {
+  const svg = $('#orbit'), rot = $('#orbit-rot');
+  const C = 180, R = 122;
+  const pt = d => { const r = d * Math.PI / 180; return [(C + R * Math.cos(r)).toFixed(1), (C + R * Math.sin(r)).toFixed(1)]; };
+
+  let html = '';
+  // стрелки по дуге по часовой между узлами
+  NODES.forEach(n => {
+    const [x1, y1] = pt(n.a + 32), [x2, y2] = pt(n.a + 57);
+    html += `<path class="arc" d="M${x1} ${y1} A${R} ${R} 0 0 1 ${x2} ${y2}" marker-end="url(#arr)"/>`;
+  });
+  NODES.forEach(n => {
+    const [x, y] = pt(n.a);
+    html += `<g class="node" data-node="${n.svc}" transform="translate(${x} ${y})"><g class="node-in">
+      <rect x="-46" y="-28" width="92" height="56" rx="16"/>
+      <g class="ico" transform="translate(-9 -23) scale(.75)">${ICONS[n.icon]}</g>
+      <text class="n-t" y="8">${n.t}</text>
+      <text class="n-s" y="21">${n.s}</text>
+    </g></g>`;
+  });
+  rot.innerHTML = html;
+  const inners = $$('.node-in', rot);
+
+  let angle = 0, vel = 0, dragging = false, visible = true, raf = 0;
+  let lastA = 0, lastT = 0, downX = 0, downY = 0, moved = false, downNode = null;
+  const BASE = RM ? 0 : 0.07; // градусов за кадр (~4°/с)
+
+  const apply = () => {
+    rot.setAttribute('transform', `rotate(${angle.toFixed(2)} ${C} ${C})`);
+    const back = `rotate(${(-angle).toFixed(2)})`;
+    inners.forEach(g => g.setAttribute('transform', back));
+  };
+  const ptrAngle = e => {
+    const r = svg.getBoundingClientRect();
+    return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI;
+  };
+
+  svg.addEventListener('pointerdown', e => {
+    dragging = true; moved = false; vel = 0;
+    downX = e.clientX; downY = e.clientY;
+    lastA = ptrAngle(e); lastT = performance.now();
+    downNode = e.target.closest('[data-node]');
+    try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) moved = true;
+    if (!moved) return;
+    const a = ptrAngle(e), now = performance.now();
+    let d = a - lastA; if (d > 180) d -= 360; if (d < -180) d += 360;
+    angle += d;
+    vel = RM ? 0 : Math.max(-12, Math.min(12, d / Math.max(8, now - lastT) * 16));
+    lastA = a; lastT = now;
+    apply();
+  });
+  const end = e => {
+    if (!dragging) return;
+    dragging = false;
+    if (e.type === 'pointerup' && !moved && downNode) { impact('light'); openService(downNode.dataset.node); }
+  };
+  svg.addEventListener('pointerup', end);
+  svg.addEventListener('pointercancel', end);
+
+  const loop = () => {
+    if (!dragging) { vel += (BASE - vel) * 0.025; angle += vel; apply(); }
+    raf = visible ? requestAnimationFrame(loop) : 0;
+  };
+  // не крутим, когда круг за пределами экрана — бережём батарею
+  new IntersectionObserver(([e]) => {
+    visible = e.isIntersecting;
+    if (visible && !raf) raf = requestAnimationFrame(loop);
+  }).observe(svg);
+  apply();
+}
+
+/* =========================================================
+   КВИЗ «СКАН КАНАЛА»
+   ========================================================= */
+const QUIZ = [
+  { k: 'channel', q: 'Есть Telegram-канал?', a: [['yes', 'да'], ['no', 'нет']] },
+  { k: 'traffic', q: 'Приходят ли в него новые люди?', a: [['regular', 'да, регулярно'], ['little', 'мало'], ['none', 'почти нет']] },
+  { k: 'product', q: 'Что продаёте?', a: [['consult', 'консультации'], ['course', 'курс или группу'], ['both', 'и то и другое']] },
+  { k: 'pain', q: 'Главная боль?', a: [['nowrite', 'не пишут'], ['nobuy', 'пишут, но не покупают'], ['notime', 'нет времени на контент']] }
+];
+let qAnswers = {}, qStep = 0, qPct = 0, quizResult = null;
+
+/* Логика диагноза (по порядку приоритета):
+   1. «и то и другое» или нет времени на контент → Всё под ключ
+   2. канала нет → Упаковка (сначала нужен понятный канал)
+   3. нет трафика (мало / почти нет) → Рилсы
+   4. трафик есть, но «не пишут» → канал не понятен → Упаковка
+   5. курс или группа → Запуск
+   6. консультации → Воронка */
+function diagnose(a) {
+  if (a.product === 'both' || a.pain === 'notime') return 'turnkey';
+  if (a.channel === 'no') return 'pack';
+  if (a.traffic !== 'regular') return 'reels';
+  if (a.pain === 'nowrite') return 'pack';
+  if (a.product === 'course') return 'launch';
+  return 'funnel';
+}
+const NOTES = {
+  turnkey: 'Нужна вся система сразу — и чтобы контент делали за вас.',
+  pack: 'Сначала канал должен с первых постов объяснять, кто вы и как к вам попасть.',
+  reels: 'Канал есть, но в него мало кто приходит. Рилсы дадут поток новых людей.',
+  launch: 'Курсу или группе нужен прогрев и окно продаж — это запуск.',
+  funnel: 'Люди приходят — осталось довести их до записи на консультацию.'
+};
+
+function quizSteps() { return qAnswers.channel === 'no' ? QUIZ.filter(q => q.k !== 'traffic') : QUIZ; }
+
+function renderQuestion() {
+  const steps = quizSteps(), q = steps[qStep];
+  const body = $('#quiz-body');
+  body.innerHTML = `
+    <div class="q-step"><b>[${qStep + 1}/${steps.length}]</b> ${q.k}</div>
+    <div class="q-text">${q.q}</div>
+    <div class="q-answers">${q.a.map(([v, t]) => `<button class="q-ans" data-v="${v}">${t}</button>`).join('')}</div>`;
+  $$('.q-ans', body).forEach(b => b.addEventListener('click', () => answer(q.k, b.dataset.v, b)));
+}
+
+async function answer(k, v, btn) {
+  btn.classList.add('pick');
+  qAnswers[k] = v;
+  if (k === 'channel' && v === 'no') qAnswers.traffic = 'none';
+  const steps = quizSteps();
+  qStep++;
+  const target = qStep >= steps.length ? 100 : Math.min(97, Math.round(qStep / steps.length * 100) + Math.floor(Math.random() * 9) - 4);
+  await scanTo(target);
+  qStep >= steps.length ? showDiagnosis() : renderQuestion();
+}
+
+function scanTo(target) {
+  return new Promise(res => {
+    const body = $('#quiz-body');
+    body.innerHTML = `<div class="scan"><div class="scan-txt">scanning... <span id="scan-n">${qPct}</span>%</div>
+      <div class="scan-bar"><i id="scan-i" style="width:${qPct}%"></i></div></div>`;
+    const n = $('#scan-n'), bar = $('#scan-i');
+    const from = qPct, dur = RM ? 0 : 650, t0 = performance.now();
+    requestAnimationFrame(() => { bar.style.width = target + '%'; });
+    const tick = now => {
+      const p = dur ? Math.min(1, (now - t0) / dur) : 1;
+      n.textContent = Math.round(from + (target - from) * p);
+      if (p < 1) requestAnimationFrame(tick); else { qPct = target; setTimeout(res, RM ? 0 : 180); }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+function answersText() {
+  const lbl = k => { const q = QUIZ.find(x => x.k === k); const a = q.a.find(x => x[0] === qAnswers[k]); return a ? a[1] : '—'; };
+  return `канал: ${lbl('channel')} · люди: ${qAnswers.channel === 'no' ? '—' : lbl('traffic')} · продаёт: ${lbl('product')} · боль: ${lbl('pain')}`;
+}
+
+async function showDiagnosis() {
+  const key = diagnose(qAnswers), s = SERVICES[key];
+  quizResult = { key, title: s.title, answers: answersText() };
+  const body = $('#quiz-body');
+  body.innerHTML = `
+    <div class="q-step"><b>[done]</b> scan complete</div>
+    <div class="diag" id="diag"></div>
+    <p class="diag-note" style="opacity:0" id="diag-note">${NOTES[key]}</p>
+    <div class="q-actions" style="opacity:0" id="diag-act">
+      <button class="btn btn-main" id="diag-open">&gt; открыть: ${s.title}</button>
+      <button class="link-btn" id="diag-again">↻ пройти заново</button>
+    </div>`;
+  const d = $('#diag');
+  const pre = '> diagnosis: вам подходит ';
+  await typeText(d, pre + s.short, 32);
+  d.innerHTML = pre + `<em>${s.short}</em><span class="cursor">_</span>`;
+  $('#diag-note').style.opacity = 1; $('#diag-act').style.opacity = 1;
+  notify('success');
+  $('#diag-open').addEventListener('click', () => openService(key));
+  $('#diag-again').addEventListener('click', resetQuiz);
+
+  const tq = $('#tf-quiz'); tq.hidden = false;
+  tq.innerHTML = `// результат скана: <b>${s.short}</b> — прикрепится к заявке`;
+}
+
+function resetQuiz() { qAnswers = {}; qStep = 0; qPct = 0; renderQuestion(); }
+
+/* =========================================================
+   ФОРМА РАЗБОРА
+   ========================================================= */
+$('#razbor-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const inp = $('#f-channel'), out = $('#f-out'), btn = $('#f-submit');
+  const channel = inp.value.trim().replace(/^(https?:\/\/)?(t\.me\/|telegram\.me\/)/i, '').replace(/^@+/, '').replace(/\/.*$/, '');
+  const pain = $('#f-pain').value.trim();
+  if (!channel) {
+    const cl = $('#cl-channel'); cl.classList.remove('err'); void cl.offsetWidth; cl.classList.add('err');
+    notify('error'); inp.focus();
+    out.textContent = '> error: укажите канал';
+    return;
+  }
+  btn.disabled = true;
+  await typeText(out, '> sending...', 25);
+  const ok = await sendLead({
+    type: 'razbor', channel: '@' + channel, pain,
+    quiz_result: quizResult ? quizResult.title : null,
+    quiz_answers: quizResult ? quizResult.answers : null
+  });
+  if (ok) {
+    await typeText(out, '> request sent. Марк напишет вам в течение дня', 22);
+    out.innerHTML += '<span class="cursor">_</span>';
+  } else {
+    out.textContent = '> error: не отправлено';
+    btn.disabled = false;
+  }
+});
+
+/* =========================================================
+   СОЗВОН
+   ========================================================= */
+$('#call-btn').addEventListener('click', async () => {
+  toast('> записываю на созвон...');
+  const ok = await sendLead({ type: 'call', quiz_result: quizResult ? quizResult.title : null });
+  if (ok) toast('> готово. Марк напишет, чтобы согласовать время_', 3500);
+});
+
+/* =========================================================
+   ПАСХАЛКА: 5 быстрых тапов по логотипу
+   ========================================================= */
+let taps = [];
+$('#logo').addEventListener('click', async () => {
+  impact('light');
+  const now = Date.now();
+  taps = taps.filter(t => now - t < 1500); taps.push(now);
+  if (taps.length < 5) return;
+  taps = [];
+  const egg = $('#egg'), log = $('#egg-log');
+  egg.hidden = false; log.innerHTML = '';
+  const l = () => log.appendChild(document.createElement('div'));
+  await typeText(l(), '$ sudo hire_mark', 45);
+  await sleep(RM ? 0 : 350);
+  await typeText(l(), '[sudo] checking permissions...', 15);
+  await sleep(RM ? 0 : 300);
+  const last = l();
+  await typeText(last, 'access granted. промокод: TERMINAL10 (−10%)', 22);
+  last.innerHTML = 'access granted. промокод: <b>TERMINAL10</b> (−10%)<span class="cursor">_</span>';
+  const hint = l(); hint.style.color = '#9a9a9a';
+  await typeText(hint, '// промокод прикрепится к вашей заявке', 12);
+  promo = 'TERMINAL10';
+  notify('success');
+});
+const closeEgg = () => { $('#egg').hidden = true; };
+$('#egg-x').addEventListener('click', closeEgg);
+$('#egg').addEventListener('click', e => { if (e.target.id === 'egg') closeEgg(); });
+
+/* =========================================================
+   СТАРТ
+   ========================================================= */
+renderTabs();
+renderService('pack');
+renderQuestion();
+initOrbit();
+boot().then(() => { initGlitch(); initTyping(); });
+</script>
+</body>
+</html>
